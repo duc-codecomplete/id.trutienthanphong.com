@@ -18,7 +18,7 @@
                         </div>
                         <div class="form-group">
                             <label for="password">* Mật khẩu</label>
-                            <input required="password" class="form-control" name="password" placeholder="">
+                            <input required type="password" class="form-control" name="password" placeholder="">
                         </div>
                         <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
                     </form>
