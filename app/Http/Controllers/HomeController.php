@@ -32,10 +32,17 @@ class HomeController extends Controller
 
     public function getNapTien()
     {
-        $now = Carbon::now();
-        $currentPromotion = Promotion::where('start_time', '<=', $now)->where('end_time', '>=', $now)->first();
-        $img = "https://img.vietqr.io/image/mbbank-0975832648-compact2.jpg?addInfo=TT" . strtoupper(Auth::user()->username) . "&accountName=Tru%20Tien%20Viet%20Nam";
-        return view("deposit", ["currentPromotion" => $currentPromotion, "img" => $img]);
+        return view("naptien");
+    }
+
+    public function getQrcode()
+    {
+        return view("qrcode", ["cash" => request()->cash]);
+    }
+
+    public function getQrcodeSuccess()
+    {
+        return back();
     }
 
     public function getShop()
