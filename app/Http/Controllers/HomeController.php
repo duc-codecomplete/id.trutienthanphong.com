@@ -2,88 +2,268 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\User;
+use App\Models\Deposit;
 use App\Models\Giftcode;
-use App\Models\Donate;
 use App\Models\GiftcodeUser;
+use App\Models\Promotion;
+use App\Models\Shop;
+use App\Models\Transaction;
+use App\Models\User;
+use Auth;
 use DB;
+use Illuminate\Http\Request;
+use \Carbon\Carbon;
 
 class HomeController extends Controller
 {
 
     public function home()
     {
-        return view('home');
+        $user = Auth::user();
+        $shops = Transaction::where("type", "shop")->latest()->limit(10)->get();
+        return view('home', ["user" => $user, "shops" => $shops]);
     }
 
-    public function signup()
+    public function shopHistory()
     {
-        return view('signup');
+        $shops = Transaction::where("type", "shop")->latest()->get();
+        return view('histories', ["shops" => $shops]);
     }
 
-    public function signin()
+    public function getNapTien()
     {
-        return view('signin');
+        $now = Carbon::now();
+        $currentPromotion = Promotion::where('start_time', '<=', $now)->where('end_time', '>=', $now)->first();
+        $img = "https://img.vietqr.io/image/mbbank-0975832648-compact2.jpg?addInfo=TT" . strtoupper(Auth::user()->username) . "&accountName=Tru%20Tien%20Viet%20Nam";
+        return view("deposit", ["currentPromotion" => $currentPromotion, "img" => $img]);
     }
 
-    public function signupPost(Request $request)
+    public function getShop()
     {
-        $validated = $request->validate([
-            'login' => 'required|min:4|max:10|alpha_num',
-            'passwd' => 'required|min:4|max:10|alpha_num',
-            'passwdConfirm' => 'required|same:passwd',
-            'email' => 'required|email|unique:users,email',
-        ], [
-            "login.min" => "Tên đăng nhập chỉ được chứa từ 3 - 10 kí tự",
-            "login.max" => "Tên đăng nhập chỉ được chứa từ 3 - 10 kí tự",
-            "login.alpha_num" => "Tên đăng nhập chỉ được chứa chữ và số",
-            "passwd.min" => "Mật khẩu chỉ được chứa từ 3 - 10 kí tự",
-            "passwd.max" => "Mật khẩu chỉ được chứa từ 3 - 10 kí tự",
-            "passwd.alpha_num" => "Mật khẩu chỉ được chứa chữ và số",
-            "passwdConfirm.same" => "Mật khẩu nhập lại không đúng",
-        ]);
-        sleep(2);
-        $client = new \GuzzleHttp\Client();
-        $response = $client->request('POST', 'http://38.180.106.91/html/reg.php', ["form_params" => [
-            "login" => strtolower($request->login),
-            "passwd" => $request->passwd,
-            "repasswd" => $request->passwd,
-            "email" => $request->login . "@gmail.com",
-        ]]);
-        $content = json_decode($response->getBody()->getContents(), true);
-        if ($content["success"]) {
-            $user = new User;
-            $user->name = $request->login;
-            $user->username = $request->login;
-            $user->userid = $content["userid"];
-            $user->email = $request->login . "@gmail.com";
-            $user->password2 = $request->passwd;
-            $user->password = \Hash::make($request->passwd);
-            $user->email_verified_at = date("Y-m-d H:i:s");
+        $shops = Shop::where("status", "active")->get();
+        return view("shop", ["shops" => $shops]);
+    }
+
+    public function postShop(Request $request)
+    {
+        $user = Auth::user();
+        if ($user->main_id == "") {
+            return redirect()->back()->with('error', 'Chưa chọn nhân vật để mua vật phẩm.');
+        }
+
+        if ($request->quantity < 1) {
+            return redirect()->back()->with('error', 'Số lượng không thể nhỏ hơn 1.');
+        }
+
+        $shop = Shop::find($request->shop_id);
+        if ($request->quantity > $shop->stack) {
+            return redirect()->back()->with('error', 'Số lượng không thể lớn hơn số lượng xếp chồng của vật phẩm.');
+        }
+        $balance = $user->balance;
+        $cash = $request->quantity * $shop->price;
+        if ($balance < $cash) {
+            return redirect()->back()->with('error', 'Số xu trong tài khoản không đủ (cần ' . $cash . ' xu, thiếu ' . $cash - $balance . ' xu), vui lòng nạp thêm.');
+        }
+        try {
+            DB::beginTransaction();
+            $this->callGameApi("post", "/html/send2.php", [
+                "receiver" => $user->main_id,
+                "itemid" => $shop->itemid,
+                "count" => $request->quantity,
+            ]);
+            $user->balance = $balance - $cash;
             $user->save();
-            return back()->with("success", "Tạo tài khoản thành công!");
-        } else {
-            return back()->with("error", "Tên đăng nhập đã tồn tại!");
+
+            $transaction = new Transaction;
+            $transaction->user_id = $user->id;
+            $transaction->shop_quantity = $request->quantity;
+            $transaction->shop_id = $request->shop_id;
+            $transaction->type = "shop";
+            $transaction->char_id = $user->main_id;
+            $transaction->save();
+            DB::commit();
+            return back()->with('success', 'Chúc mừng bạn đã mua thành công ' . $request->quantity . ' cái ' . $shop->name . ' với giá ' . $cash . ' (xu)');
+        } catch (\Throwable $th) {
+            DB::rollback();
+            return back()->with("error", "Có lỗi xảy ra, vui lòng liên hệ GM!");
         }
     }
 
-    public function signinPost(Request $request)
+    public function getGiftcode()
     {
-        $validated = $request->validate([
-            'login' => 'bail|required',
-            'password' => 'bail|required',
-        ], [
-            "login.required" => "Tên đăng nhập chỉ được chứa từ 3 - 10 kí tự"
-        ]);
-        $login = [
-            'email' => $request->login."@gmail.com",
-            'password' => $request->password
-        ];
-        if (\Auth::attempt($login)) {
-            return redirect('/');
-        } else {
-            return redirect()->back()->with('error', 'Tên đăng nhập hoặc mật khẩu không chính xác');
+        $giftcodes = Giftcode::all();
+        return view("giftcodes", ["giftcodes" => $giftcodes]);
+    }
+
+    public function useGiftcode(Request $request)
+    {
+        $char_id = request()->char_id;
+        $giftcode = request()->giftcode;
+        $user = Auth::user();
+        if (!$char_id) {
+            return back()->with("error", "Vui lòng vào game tạo nhân vật!!");
         }
+        $code = Giftcode::where("giftcode", $giftcode)->first();
+        if (!$code) {
+            return redirect()->back()->with('error', 'Giftcode không tồn tại');
+        }
+        $today = \Carbon\Carbon::now()->toDateString();
+        if ($today > $code->expired) {
+            return redirect()->back()->with('error', 'Giftcode này đã hết hạn');
+        }
+        $userGiftcode = GiftcodeUser::where(["user_id" => $user->id, "giftcode_id" => $code->id])->first();
+        if ($userGiftcode) {
+            return redirect()->back()->with('error', 'Bạn đã dùng giftcode này!');
+        }
+        try {
+            DB::beginTransaction();
+            $use = new GiftcodeUser;
+            $use->user_id = $user->id;
+            $use->giftcode_id = $code->id;
+            $use->char_id = $char_id;
+            $use->save();
+            $code->count = $code->count + 1;
+            $code->save();
+
+            $this->callGameApi("post", "/html/send2.php", [
+                "receiver" => $char_id,
+                "itemid" => $code->itemid,
+                "count" => $code->quantity,
+            ]);
+            DB::commit();
+            return back()->with("success", "Sử dụng giftcode thành công, vui lòng check tín sứ!");
+        } catch (\Exception $e) {
+            throw $e;
+            DB::rollback();
+            return back()->with("error", "Có lỗi xảy ra, vui lòng liên hệ GM!");
+        }
+    }
+
+    public function getKnb()
+    {
+        return view("knb");
+    }
+
+    public function postKnb()
+    {
+        $ratio = 3;
+        $user = Auth::user();
+        $xu = request()->cash;
+        if ($xu < 50000 || $xu > $user->balance) {
+            return back()->with("error", "Số xu nạp phải lớn hơn 50000 và nhỏ hơn số dư xu hiện có!");
+        }
+        try {
+            DB::beginTransaction();
+            $this->callGameApi("POST", "/html/knb.php", [
+                "userid" => $user->userid,
+                "cash" => intval($xu / 10) * $ratio,
+            ]);
+            $user->balance = intval($user->balance) - $xu;
+            $user->save();
+
+            $transaction = new Transaction;
+            $transaction->user_id = $user->id;
+            $transaction->knb_amount = $xu;
+            $transaction->type = "knb";
+            $transaction->save();
+            return back()->with("success", "Đã chuyển " . intval($xu / 1000) * $ratio . " KNB vào game thành công!");
+        } catch (\Throwable $th) {
+            throw $th;
+            DB::rollback();
+            return back()->with("error", "Có lỗi xảy ra, vui lòng liên hệ GM!");
+        }
+    }
+
+    public function transactions()
+    {
+        $shops = Transaction::where("user_id", Auth::user()->id)->where("type", "shop")->latest()->get();
+        $knbs = Transaction::where("user_id", Auth::user()->id)->where("type", "knb")->latest()->get();
+        return view("transactions", ["shops" => $shops, "knbs" => $knbs]);
+    }
+
+    public function online()
+    {
+
+        $response = $this->callGameApi("get", "/html/online1.php", []);
+        $data = $response["data"];
+        $onlines = collect($data)->pluck('uid')->all();
+        $chars = User::whereIn("userid", $onlines)->get();
+        return $chars;
+    }
+
+    public function vip()
+    {
+        try {
+            $response = $this->callGameApi("get", "/html/vip.php", []);
+            $data = $response["data"];
+            return view("vip", ["vips" => $data]);
+        } catch (\Throwable $th) {
+            return view("vip", ["vips" => []]);
+        }
+    }
+
+    public function chat()
+    {
+        try {
+            $response = $this->callGameApi("get", "/ch.php", []);
+            $data = $response["data"];
+            return view("chat", ["chat" => $data]);
+        } catch (\Throwable $th) {
+            return view("chat", ["chat" => []]);
+        }
+    }
+
+    public function paymentSuccess(Request $request)
+    {
+        try {
+            $code = $request->code;
+            $username = strtolower(substr($code, 2));
+            $user = User::where("username", $username)->first();
+            $amount = $request->transferAmount;
+            $amount_promotion = $amount;
+            $processing_time = $request->transactionDate;
+            $bank = $request->gateway;
+
+            $trans = new Deposit;
+            $trans->user_id = $user->id ?? null;
+            $trans->sepay_tran_id = $request->id;
+            $trans->amount = $amount;
+            $trans->status = "success";
+            $trans->processing_time = $processing_time;
+            $trans->bank = $bank;
+            $trans->account_number = $request->accountNumber;
+
+            $currentPromotion = $this->getCurrentPromotion();
+            if ($currentPromotion) {
+                if ($currentPromotion->type == "double") {
+                    $amount_promotion = $amount_promotion * $currentPromotion->amount;
+                } else {
+                    $amount_promotion = $amount_promotion + $amount_promotion * $currentPromotion->amount / 100;
+                }
+            }
+            $trans->amount_promotion = $amount_promotion;
+            $user->balance = $amount_promotion;
+            $trans->save();
+            $user->save();
+            $msg = "Người chơi ". $username . "đã nạp ".number_format($amount) . "";
+            $this->sendMessage($msg);
+
+            return response()->json("ok", 200);
+        } catch (\Throwable $th) {
+            return view("chat", ["chat" => []]);
+        }
+    }
+
+    public function histories()
+    {
+        $histories = Deposit::where("user_id", Auth::user()->id)->latest()->get();
+        return view("deposit_history", ["histories" => $histories]);
+    }
+
+    private function getCurrentPromotion()
+    {
+        $now = Carbon::now();
+        $currentPromotion = Promotion::where('start_time', '<=', $now)->where('end_time', '>=', $now)->first();
+        return $currentPromotion;
     }
 }

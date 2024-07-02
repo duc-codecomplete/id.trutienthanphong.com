@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registration Form</title>
+    <title>Tru Tiên Thần Phong</title>
     <!-- Bootstrap CSS -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 </head>
@@ -17,7 +17,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="https://trutienthanphong.com">Trang chủ</a>
+                    <a class="nav-link" href="/">Trang chủ</a>
                 </li>
                 @if(!Auth::check())
                 <li class="nav-item">
@@ -28,6 +28,18 @@
                 </li>
                 @else
                 <li class="nav-item">
+                    <a class="nav-link" href="/giftcodes">Giftcode</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/nap-tien">Nạp tiền</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Lịch sử nạp tiền</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/doi-mat-khau">Đổi mật khẩu</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="/logout">Thoát</a>
                 </li>
                 @endif
@@ -36,7 +48,9 @@
     </nav>
 
     <!-- Registration Form -->
-    @yield('content')
+    <div class="container p-4">
+        @yield('content')
+    </div>
 
     <!-- Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

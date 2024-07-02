@@ -42,4 +42,21 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function getLoginField($loginValue)
+    {
+        return "username";
+    }
+
+    public function chars() {
+        return Char::where("userid", $this->userid)->get();
+    }
+
+    public function char() {
+        return $this->belongsTo(Char::class, "main_id", "char_id");
+    }
+
+    public function getMain() {
+        return $this->char ? $this->char->getName() : "Chưa tạo nhân vật";
+    }
 }

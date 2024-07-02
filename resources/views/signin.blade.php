@@ -14,11 +14,11 @@
                         @endif
                         <div class="form-group">
                             <label for="username">* Tên đăng nhập</label>
-                            <input required type="text" class="form-control" name="login" placeholder="Enter username">
+                            <input required type="text" class="form-control" name="login" placeholder="">
                         </div>
                         <div class="form-group">
                             <label for="password">* Mật khẩu</label>
-                            <input required="password" class="form-control" name="password" placeholder="Enter password">
+                            <input required="password" class="form-control" name="password" placeholder="">
                         </div>
                         <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
                     </form>

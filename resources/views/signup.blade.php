@@ -25,20 +25,20 @@
                         @endif
                         <div class="form-group">
                             <label for="username">* Tên đăng nhập</label>
-                            <input value="{{ old('login') }}" type="text" required class="form-control" name="login" placeholder="Enter username">
+                            <input value="{{ old('login') }}" type="text" required class="form-control" name="login" placeholder="">
                         </div>
                         <div class="form-group">
                             <label for="password">* Mật khẩu</label>
-                            <input type="password" required class="form-control" name="passwd" placeholder="Enter password">
+                            <input type="password" required class="form-control" name="passwd" placeholder="">
                         </div>
                         <div class="form-group">
                             <label for="confirm-password">* Xác nhận mật khẩu</label>
                             <input type="password" required class="form-control" name="passwdConfirm"
-                                placeholder="Confirm password">
+                                placeholder="">
                         </div>
                         <div class="form-group">
                             <label for="email">* Email</label>
-                            <input value="{{ old('email') }}" type="email" required class="form-control" name="email" placeholder="Enter email">
+                            <input value="{{ old('email') }}" type="email" required class="form-control" name="email" placeholder="">
                         </div>
                         <button type="submit" class="btn btn-primary btn-block">Đăng ký</button>
                     </form>
