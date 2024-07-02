@@ -24,13 +24,13 @@
   <form action="" method="POST">
     @csrf
     <div class="mb-3">
-      <input type="password" required class="form-control" name="old">
+      <input type="password" required class="form-control" name="old" placeholder="Nhập mật khẩu cũ">
     </div>
     <div class="mb-3">
-      <input type="password" required class="form-control" name="new">
+      <input type="password" required class="form-control" name="new" placeholder="Nhập mật khẩu mới">
     </div>
     <div class="mb-3">
-      <input type="password" required class="form-control" name="newcf">
+      <input type="password" required class="form-control" name="newcf" placeholder="Xác nhận mật khẩu mới">
     </div>
     <button type="submit" class="btn btn-primary" style="color:white">Cập nhật</button>
   </form>
